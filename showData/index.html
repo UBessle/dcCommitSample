@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Source Code Commit Rate - DC Example (Dimensional Charting Javascript Library)</title>
+
+    <meta charset="UTF-8">
+
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="css/dc.css"/>
+    <link rel="icon" type="image/x-icon" href="dc.logo.png"/>
+
+    <style>
+        #monthly-volume-chart g.y {
+            display: none;
+        }
+        #logo {
+            margin-right: 2em;
+            margin-top: 2em;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <h2>Source Code Commit Rate - DC Example (Dimensional Charting Javascript Library)</h2>
+
+
+    <p>
+        This is an usage example for dc.js. It shows the number of commit's in source code version control depending of different classification dimensions
+        <ul>
+            <li>time: year,month,day (hour,day of week)</li>
+            <li>structure: repository,component (package,file)</li>
+            <li>ownership: team</li>
+            <li>(authorship: team,developer)</li>
+        </ul>
+    </p>
+    <p>
+        dc.js is a javascript charting library with native <a href="http://square.github.com/crossfilter/">crossfilter</a> support and allowing highly efficient exploration on large multi-dimensional dataset (inspired by crossfilter's
+        demo). It leverages <a href="http://d3js.org/">d3</a> engine to render charts in css friendly svg format. Charts
+        rendered using dc.js are naturally data driven and reactive therefore providing instant feedback on user's
+        interaction. The main objective of this project is to provide an easy yet powerful javascript library which can be
+        utilized to perform data visualization and analysis in browser as well as on mobile device.
+    </p>
+
+    <h4>Version Status</h4>
+    <!--
+    <p>This page is running version: v<span id="version"></span>. The latest stable version is v<span id="latest"></span>.</p>
+    -->
+    <h2>Source Code Commit Rate : from-until</h2>
+
+    <div class="row">
+        <div id="yearly-bubble-chart" class="dc-chart">
+            <strong>Yearly Performance</strong> (radius: fluctuation/index ratio, color: gain/loss)
+            <a class="reset" href="javascript:yearlyBubbleChart.filterAll();dc.redrawAll();"
+               style="display: none;">reset</a>
+
+            <div class="clearfix"></div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div id="gain-loss-chart">
+            <strong>Days by Gain/Loss</strong>
+            <a class="reset" href="javascript:gainOrLossChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
+
+            <div class="clearfix"></div>
+        </div>
+
+        <div id="quarter-chart">
+            <strong>Quarters</strong>
+            <a class="reset" href="javascript:quarterChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
+
+            <div class="clearfix"></div>
+        </div>
+
+        <div id="day-of-week-chart">
+            <strong>Day of Week</strong>
+            <a class="reset" href="javascript:dayOfWeekChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
+
+            <div class="clearfix"></div>
+        </div>
+
+        <div id="fluctuation-chart">
+            <strong>Days by Fluctuation(%)</strong>
+            <span class="reset" style="display: none;">range: <span class="filter"></span></span>
+            <a class="reset" href="javascript:fluctuationChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
+
+            <div class="clearfix"></div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div id="monthly-move-chart">
+            <strong>Monthly Index Abs Move & Volume/500,000 Chart</strong>
+            <span class="reset" style="display: none;">range: <span class="filter"></span></span>
+            <a class="reset" href="javascript:moveChart.filterAll();volumeChart.filterAll();dc.redrawAll();"
+               style="display: none;">reset</a>
+
+            <div class="clearfix"></div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div id="monthly-volume-chart">
+        </div>
+        <p class="muted pull-right" style="margin-right: 15px;">select a time range to zoom in</p>
+    </div>
+
+    <div class="row">
+        <div>
+            <div class="dc-data-count">
+                <span class="filter-count"></span> selected out of <span class="total-count"></span> records | <a
+                    href="javascript:dc.filterAll(); dc.renderAll();">Reset All</a>
+            </div>
+        </div>
+        <table class="table table-hover dc-data-table">
+        </table>
+    </div>
+
+    <div class="clearfix"></div>
+
+    <a href="https://github.com/dc-js/dc.js"><img style="position: absolute; top: 0; right: 0; border: 0;"
+                                                      src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png"
+                                                      alt="Fork me on GitHub"></a>
+</div>
+
+<script type="text/javascript" src="js/d3.js"></script>
+<script type="text/javascript" src="js/crossfilter.js"></script>
+<script type="text/javascript" src="js/dc.js"></script>
+<script type="text/javascript" src="js/colorbrewer.js"></script>
+
+<script type="text/javascript" src="commit-rate.js"></script>
+
+</body>
+</html>

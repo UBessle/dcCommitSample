@@ -1,0 +1,42 @@
+commit 0433ee16ca43cc26324f66aafa43e0caae3bee90
+Author: Gordon Woodhull <gordon@woodhull.com>
+Date:   Mon Apr 13 19:56:30 2015 -0400
+
+    update changelog
+
+3	0	Changelog.md
+
+commit 875288b4b50e98ae5820dbed604257b24d3739ef
+Author: Gordon Woodhull <gordon@woodhull.com>
+Date:   Mon Apr 13 19:50:00 2015 -0400
+
+    add a smoke test for #909
+    
+    with enough data to crash crossfilter if something is wrong
+    with the ordering function. thanks @simon-stealthbits!
+
+137	0	spec/biggish-data-spec.js
+
+commit c945969d7bb14f7a7e86e700d29cda8ba7029f94
+Author: Gordon Woodhull <gordon@woodhull.com>
+Date:   Mon Apr 13 19:46:48 2015 -0400
+
+    Correction on #766, fixes #909
+    
+    running _computeOrderedGroups on the d3.stack data meant that the ordering
+    function had to have a different signature from usual, peering into the
+    inner `.data`.
+    
+    this was causing a crossfilter crash in IE (#909).
+    
+    so revert that and instead have `_ordinalXDomain` pluck the data and order
+    that. slightly more efficient for the other uses of `flattenStacks` that
+    don't need ordering, and actually correct.
+
+4	3	dc.js
+3	4	dc.min.js
+1	1	dc.min.js.map
+6	6	spec/bar-chart-spec.js
+4	3	src/stack-mixin.js
+4	3	web/js/dc.js
+
