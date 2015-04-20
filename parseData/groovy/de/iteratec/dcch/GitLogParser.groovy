@@ -12,18 +12,32 @@ public class GitLogParser {
         jsonBuilder = new StreamingJsonBuilder(writer)
         writeJsonOutputStart()
         resetParsedValues()
+        int lineCounter = 0
+        String oldYearMonth = ""
         input.eachLine() { line ->
+            lineCounter++
+            if (lineCounter%50 == 0) {
+                System.err.print(".")
+            }
             switch(line) {
                 case ~/^commit .*/:
                     commitEntry.commit = parseCommitHash(line)
                     status = "afterCommit"
+                    System.err.print("+")
                     break
                 case ~/^Author:.*/:
                     commitEntry.author = parseAuthor(line)
                     status = "afterAuthor"
                     break
                 case ~/^Date:.*/:
-                    commitEntry.date = parseDate(line)
+                    Date date = parseDate(line)
+                    String yearMonth = date.format("yyyy-MM")
+                    if (yearMonth.equals(oldYearMonth)) {
+                    } else {
+                        System.err.print("\n${yearMonth}:")
+                        oldYearMonth = yearMonth
+                    }
+                    commitEntry.date = date
                     status = "afterDate"
                     break
                 case ~/^\d+\s+\d+.*/:
@@ -51,7 +65,8 @@ public class GitLogParser {
         }
         writeParsedCommit()    
         resetParsedValues()   
-        writeJsonOutputEnd()             
+        writeJsonOutputEnd()
+        System.err.println()             
     }
      
     void writeJsonOutputStart() {
@@ -106,9 +121,15 @@ public class GitLogParser {
         return parseResult[0][1]
     }
      
-    String parseDate(String line) {
-        def parseResult = (line =~ /^Date:\s+\S+ (.*)/)
-        Date parseResultDate = Date.parse("MMM dd HH:mm:ss yyyy Z",parseResult[0][1].trim())
+    Date parseDate(String line) {
+        def parseResult = (line =~ /^Date:\s+(.*)/)
+        def dateString = parseResult[0][1].trim()
+        Date parseResultDate = null
+        try {
+            parseResultDate = Date.parse("yyyy-MM-dd HH:mm:ss Z",dateString)
+        } catch (java.text.ParseException pe) {
+            System.err.println "dateString:${dateString} causes ParseException:${pe}"
+        }
         return parseResultDate
     }
      

@@ -10,6 +10,6 @@ currentDir=`pwd`
 gitRepoDir=$1
 
 cd $gitRepoDir 
-git log --numstat --no-merges
+git log --numstat --no-merges  --date=iso
 
 cd $currentDir
