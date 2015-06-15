@@ -60,9 +60,23 @@
     </div>
 
     <div class="row">
+        <div id="source-type-commit-chart">
+            <strong>Commits by source type</strong>
+            <a class="reset" href="javascript:sourceTypeCommitChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
+
+            <div class="clearfix"></div>
+        </div>
+
         <div id="gain-loss-chart">
             <strong>Days by Gain/Loss</strong>
             <a class="reset" href="javascript:gainOrLossChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
+
+            <div class="clearfix"></div>
+        </div>
+
+        <div id="year-chart">
+            <strong>Years</strong>
+            <a class="reset" href="javascript:quarterChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
 
             <div class="clearfix"></div>
         </div>

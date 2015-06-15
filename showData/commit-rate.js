@@ -8,9 +8,11 @@
 // Create chart objects assocated with the container elements identified by the css selector.
 // Note: It is often a good idea to have these objects accessible at the global scope so that they can be modified or
 // filtered by other page controls.
+var sourceTypeCommitChart = dc.pieChart('#source-type-commit-chart');
 var gainOrLossChart = dc.pieChart('#gain-loss-chart');
 var fluctuationChart = dc.barChart('#fluctuation-chart');
 var quarterChart = dc.pieChart('#quarter-chart');
+var yearChart = dc.pieChart('#year-chart');
 var dayOfWeekChart = dc.rowChart('#day-of-week-chart');
 var moveChart = dc.lineChart('#monthly-move-chart');
 var volumeChart = dc.barChart('#monthly-volume-chart');
@@ -46,35 +48,78 @@ var yearlyBubbleChart = dc.bubbleChart('#yearly-bubble-chart');
 //d3.json('data.json', function(data) {...};
 //jQuery.getJson('data.json', function(data){...});
 //```
-d3.csv('ndx.csv', function (data) {
+d3.csv('svn.csv', function (data) {
     /* since its a csv file we need to format the data a bit */
-    var dateFormat = d3.time.format('%m/%d/%Y');
+    var dateFormat = d3.time.format('%Y-%m-%d %H:%M:%S');
     var numberFormat = d3.format('.2f');
 
-    data.forEach(function (d) {
+    data.forEach(function (logEntry) {
+        /*
         d.dd = dateFormat.parse(d.date);
         d.month = d3.time.month(d.dd); // pre-calculate month for better performance
         d.close = +d.close; // coerce to number
         d.open = +d.open;
+        */
+        logEntry.dd = dateFormat.parse(logEntry.date);
+        logEntry.year = logEntry.dd.getFullYear(); // pre-calculate year for better performance
+//        logEntry.year = d3.time.year(logEntry.dd); // pre-calculate year for better performance
+        logEntry.month = logEntry.dd.getMonth(); // pre-calculate month for better performance
+//        logEntry.month = d3.time.month(logEntry.dd); // pre-calculate month for better performance
+        logEntry.day = logEntry.dd.getDay(); // pre-calculate day for better performance
+//        logEntry.day = d3.time.day(logEntry.dd); // pre-calculate day for better performance
+        logEntry.added_lines = +logEntry.added_lines; // convert to number
+        logEntry.removed_lines = +logEntry.removed_lines; // convert to number
+        logEntry.parts = logEntry.path.split("/"); // tokenize path string
+        logEntry.filename = logEntry.parts[logEntry.parts.length - 1];
+        var filenameParts = logEntry.filename.split(".");
+        logEntry.sourceType = filenameParts.length < 2 ? "unknown" : filenameParts[filenameParts.length - 1];
+        logEntry.technicalComponentType = parseTechnicalComponentTypeFromFilename(logEntry.filename);
+        logEntry.technicalComponent = parseTechnicalComponentFromPath(logEntry.parts);
     });
+
+    function parseTechnicalComponentFromPath(parts) {
+        return parts[Math.floor(Math.random() * (parts.length-2) +1)];
+    }
+
+    function parseTechnicalComponentTypeFromFilename(filename) {
+        var technicalComponentTypes = [
+            'dlg',
+            'tab',
+            'server',
+            'batch',
+            'GF',
+            'DV',
+            'table',
+            'sql',
+            'perllib',
+            'perlbatch',
+            'perlcgi',
+            'shellbatch',
+            'webservice',
+            'windowsgui',
+            '?'
+        ];
+
+        return technicalComponentTypes[Math.floor(Math.random() * technicalComponentTypes.length)];
+    }
 
     //### Create Crossfilter Dimensions and Groups
     //See the [crossfilter API](https://github.com/square/crossfilter/wiki/API-Reference) for reference.
-    var ndx = crossfilter(data);
-    var all = ndx.groupAll();
+    var svn = crossfilter(data);
+    var all = svn.groupAll();
 
     // dimension by year
-    var yearlyDimension = ndx.dimension(function (d) {
-        return d3.time.year(d.dd).getFullYear();
+    var yearlyDimension = svn.dimension(function (d) {
+        return d.year;
     });
     // maintain running tallies by year as filters are applied or removed
     var yearlyPerformanceGroup = yearlyDimension.group().reduce(
         /* callback for when data is added to the current filter results */
         function (p, v) {
             ++p.count;
-            p.absGain += v.close - v.open;
-            p.fluctuation += Math.abs(v.close - v.open);
-            p.sumIndex += (v.open + v.close) / 2;
+            p.absGain += v.added_lines - v.removed_lines;
+            p.fluctuation += Math.abs(v.added_lines - v.removed_lines);
+            p.sumIndex += (v.added_lines + v.removed_lines) / 2;
             p.avgIndex = p.sumIndex / p.count;
             p.percentageGain = p.avgIndex ? (p.absGain / p.avgIndex) * 100 : 0;
             p.fluctuationPercentage = p.avgIndex ? (p.fluctuation / p.avgIndex) * 100 : 0;
@@ -83,9 +128,9 @@ d3.csv('ndx.csv', function (data) {
         /* callback for when data is removed from the current filter results */
         function (p, v) {
             --p.count;
-            p.absGain -= v.close - v.open;
-            p.fluctuation -= Math.abs(v.close - v.open);
-            p.sumIndex -= (v.open + v.close) / 2;
+            p.absGain -= v.removed_lines - v.added_lines;
+            p.fluctuation -= Math.abs(v.added_lines - v.removed_lines);
+            p.sumIndex -= (v.added_lines + v.removed_lines) / 2;
             p.avgIndex = p.count ? p.sumIndex / p.count : 0;
             p.percentageGain = p.avgIndex ? (p.absGain / p.avgIndex) * 100 : 0;
             p.fluctuationPercentage = p.avgIndex ? (p.fluctuation / p.avgIndex) * 100 : 0;
@@ -106,32 +151,32 @@ d3.csv('ndx.csv', function (data) {
     );
 
     // dimension by full date
-    var dateDimension = ndx.dimension(function (d) {
+    var dateDimension = svn.dimension(function (d) {
         return d.dd;
     });
 
     // dimension by month
-    var moveMonths = ndx.dimension(function (d) {
+    var monthDimension = svn.dimension(function (d) {
         return d.month;
     });
     // group by total movement within month
-    var monthlyMoveGroup = moveMonths.group().reduceSum(function (d) {
-        return Math.abs(d.close - d.open);
+    var monthlyChangeGroup = monthDimension.group().reduceSum(function (d) {
+        return Math.abs(d.added_lines + d.removed_lines);
     });
     // group by total volume within move, and scale down result
-    var volumeByMonthGroup = moveMonths.group().reduceSum(function (d) {
-        return d.volume / 500000;
+    var addedLinesByMonthGroup = monthDimension.group().reduceSum(function (d) {
+        return d.added_lines / 1000;
     });
-    var indexAvgByMonthGroup = moveMonths.group().reduce(
+    var changedAvgByMonthGroup = monthDimension.group().reduce(
         function (p, v) {
             ++p.days;
-            p.total += (v.open + v.close) / 2;
+            p.total += (v.added_lines + v.removed_lines) / 2;
             p.avg = Math.round(p.total / p.days);
             return p;
         },
         function (p, v) {
             --p.days;
-            p.total -= (v.open + v.close) / 2;
+            p.total -= (v.added_lines + v.removed_lines) / 2;
             p.avg = p.days ? Math.round(p.total / p.days) : 0;
             return p;
         },
@@ -141,20 +186,27 @@ d3.csv('ndx.csv', function (data) {
     );
 
     // create categorical dimension
-    var gainOrLoss = ndx.dimension(function (d) {
-        return d.open > d.close ? 'Loss' : 'Gain';
+    var sourceType = svn.dimension(function (d) {
+        return d.sourceType ;
+    });
+    // produce counts records in the dimension
+    var sourceTypeGroup = sourceType.group();
+
+    // create categorical dimension
+    var gainOrLoss = svn.dimension(function (d) {
+        return d.removed_lines > d.added_lines ? 'Loss' : 'Gain';
     });
     // produce counts records in the dimension
     var gainOrLossGroup = gainOrLoss.group();
 
     // determine a histogram of percent changes
-    var fluctuation = ndx.dimension(function (d) {
-        return Math.round((d.close - d.open) / d.open * 100);
+    var fluctuation = svn.dimension(function (d) {
+        return Math.round((d.removed_lines - d.added_lines) / d.added_lines * 100);
     });
     var fluctuationGroup = fluctuation.group();
 
     // summerize volume by quarter
-    var quarter = ndx.dimension(function (d) {
+    var quarter = svn.dimension(function (d) {
         var month = d.dd.getMonth();
         if (month <= 2) {
             return 'Q1';
@@ -167,11 +219,81 @@ d3.csv('ndx.csv', function (data) {
         }
     });
     var quarterGroup = quarter.group().reduceSum(function (d) {
-        return d.volume;
+        return d.added_lines + d.removed_lines;
     });
 
+    // summerize commit's, committed files and committed lines by year
+    function reduceAddCommit(p,v) {
+        ++p.files;
+        p.addedLines += v.added_lines;
+        p.removedLines += v.removed_lines;
+        p.changedLines += (v.added_lines + v.removed_lines);
+        p.increasedLines += (v.added_lines - v.removed_lines);
+        if (! p.revisionMap.has(v.revision)) {
+            p.revisionMap.set(v.revision,new Map());
+        }
+        var revision = p.revisionMap.get(v.revision);
+        ++revision.files;
+        revision.addedLines += v.added_lines;
+        revision.removedLines += v.removed_lines;
+        revision.changedLines += (v.added_lines + v.removed_lines);
+        revision.increasedLines += (v.added_lines - v.removed_lines);
+        p.revisionCount = p.revisionMap.size;
+        p.avgFilesPerCommit = Math.round(p.files / p.revisionCount);
+        p.avgLinesPerCommit = Math.round(p.changedLines / p.revisionCount);
+        return p;
+    }
+    function reduceRemoveCommit(p,v) {
+        --p.files;
+        p.addedLines -= v.added_lines;
+        p.removedLines -= v.removed_lines;
+        p.changedLines -= (v.added_lines + v.removed_lines);
+        p.increasedLines -= (v.added_lines - v.removed_lines);
+        if (! p.revisionMap.has(v.revision)) {
+            console.log("try to remove revision " + v.revision + " but cannot find it in revisionMap");
+        } else {
+            var revision = p.revisionMap.get(v.revision);
+            --revision.files;
+            revision.addedLines -= v.added_lines;
+            revision.removedLines -= v.removed_lines;
+            revision.changedLines -= (v.added_lines + v.removed_lines);
+            revision.increasedLines -= (v.added_lines - v.removed_lines);
+            if (revision.files === 0) {
+                p.revisionMap.delete(v.revision);
+            }
+        }
+        p.revisionCount = p.revisionMap.size;
+        p.avgFilesPerCommit = Math.round(p.files / p.revisionCount);
+        p.avgLinesPerCommit = Math.round(p.changedLines / p.revisionCount);
+        return p;
+    }
+    function reduceInitialCommit() {
+        return {
+            countFiles:0,
+            countAddedLines:0,
+            countRemovedLines:0,
+            countIncreasedLines:0,
+            revisionMap:new Map(),
+            revisionCount:0,
+            avgFilesPerCommit:0,
+            avgLinesPerCommit:0,
+        };
+    }
+    function orderCommitCount(p) {
+        return p.revisionMap.size;
+    }
+    var year = svn.dimension(function (d) {
+        return d.year;
+    });
+    var yearGroup = year.group();
+    yearGroup
+        .reduce(reduceAddCommit, reduceRemoveCommit, reduceInitialCommit)
+        .order(orderCommitCount)
+    ;
+
+
     // counts per weekday
-    var dayOfWeek = ndx.dimension(function (d) {
+    var dayOfWeek = svn.dimension(function (d) {
         var day = d.dd.getDay();
         var name = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         return day + '.' + name[day];
@@ -197,7 +319,7 @@ d3.csv('ndx.csv', function (data) {
         .dimension(yearlyDimension)
         //Bubble chart expect the groups are reduced to multiple values which would then be used
         //to generate x, y, and radius for each key (bubble) in the group
-        .group(yearlyPerformanceGroup)
+        .group(yearGroup)
         .colors(colorbrewer.RdYlGn[9]) // (optional) define color function or array for bubbles
         .colorDomain([-500, 500]) //(optional) define color domain to match your data domain if you want to bind data or
                                   //color
@@ -265,6 +387,27 @@ d3.csv('ndx.csv', function (data) {
     // to a specific group then any interaction with such chart will only trigger redraw
     // on other charts within the same chart group.
 
+    sourceTypeCommitChart
+        .width(550) // (optional) define chart width, :default = 200
+        .height(250) // (optional) define chart height, :default = 200
+        .radius(110) // define pie radius
+        .dimension(sourceType) // set dimension
+        .group(sourceTypeGroup) // set group
+        /* (optional) by default pie chart will use group.key as its label
+         * but you can overwrite it with a closure */
+        .label(function (d) {
+            if (sourceTypeCommitChart.hasFilter() && !sourceTypeCommitChart.hasFilter(d.key)) {
+                return d.key + '(0%)';
+            }
+            var label = d.key;
+            if (all.value()) {
+                label += '(' + Math.floor(d.value / all.value() * 100) + '%)';
+            }
+            return label;
+        })
+        .legend(dc.legend().x(0).y(0).itemHeight(12).gap(5))
+    ;
+
     gainOrLossChart
         .width(180) // (optional) define chart width, :default = 200
         .height(180) // (optional) define chart height, :default = 200
@@ -296,6 +439,13 @@ d3.csv('ndx.csv', function (data) {
         // (optional) define color value accessor
         .colorAccessor(function(d, i){return d.value;})
         */;
+
+    yearChart.width(180)
+        .height(180)
+        .radius(80)
+        .innerRadius(30)
+        .dimension(year)
+        .group(yearGroup);
 
     quarterChart.width(180)
         .height(180)
@@ -363,11 +513,11 @@ d3.csv('ndx.csv', function (data) {
         .height(200)
         .transitionDuration(1000)
         .margins({top: 30, right: 50, bottom: 25, left: 40})
-        .dimension(moveMonths)
+        .dimension(monthDimension)
         .mouseZoomable(true)
         // Specify a range chart to link the brush extent of the range with the zoom focue of the current chart.
         .rangeChart(volumeChart)
-        .x(d3.time.scale().domain([new Date(1985, 0, 1), new Date(2012, 11, 31)]))
+        .x(d3.time.scale().domain([new Date(2012, 0, 1), new Date(2015, 11, 31)]))
         .round(d3.time.month.round)
         .xUnits(d3.time.months)
         .elasticY(true)
@@ -377,13 +527,13 @@ d3.csv('ndx.csv', function (data) {
         // Add the base layer of the stack with group. The second parameter specifies a series name for use in the
         // legend
         // The `.valueAccessor` will be used for the base layer
-        .group(indexAvgByMonthGroup, 'Monthly Index Average')
+        .group(changedAvgByMonthGroup, 'Monthly Index Average')
         .valueAccessor(function (d) {
             return d.value.avg;
         })
         // stack additional layers with `.stack`. The first paramenter is a new group.
         // The second parameter is the series name. The third is a value accessor.
-        .stack(monthlyMoveGroup, 'Monthly Index Move', function (d) {
+        .stack(monthlyChangeGroup, 'Monthly Index Move', function (d) {
             return d.value;
         })
         // title can be called by any stack layer.
@@ -398,11 +548,11 @@ d3.csv('ndx.csv', function (data) {
     volumeChart.width(990)
         .height(40)
         .margins({top: 0, right: 50, bottom: 20, left: 40})
-        .dimension(moveMonths)
-        .group(volumeByMonthGroup)
+        .dimension(monthDimension)
+        .group(addedLinesByMonthGroup)
         .centerBar(true)
         .gap(1)
-        .x(d3.time.scale().domain([new Date(1985, 0, 1), new Date(2012, 11, 31)]))
+        .x(d3.time.scale().domain([new Date(2012, 0, 1), new Date(2015, 11, 31)]))
         .round(d3.time.month.round)
         .alwaysUseRounding(true)
         .xUnits(d3.time.months);
@@ -418,7 +568,7 @@ d3.csv('ndx.csv', function (data) {
     </div>
     */
     dc.dataCount('.dc-data-count')
-        .dimension(ndx)
+        .dimension(svn)
         .group(all)
         // (optional) html, for setting different html for some records and all records.
         // .html replaces everything in the anchor with the html given using the following function.
@@ -461,12 +611,12 @@ d3.csv('ndx.csv', function (data) {
         // This code demonstrates generating the column header automatically based on the columns.
         .columns([
             'date',    // d['date'], ie, a field accessor; capitalized automatically
-            'open',    // ...
-            'close',   // ...
+            'added_lines',    // ...
+            'removed_lines',   // ...
             {
                 label: 'Change', // desired format of column name 'Change' when used as a label with a function.
                 format: function (d) {
-                    return numberFormat(d.close - d.open);
+                    return numberFormat(d.removed_lines - d.added_lines);
                 }
             },
             'volume'   // d['volume'], ie, a field accessor; capitalized automatically
